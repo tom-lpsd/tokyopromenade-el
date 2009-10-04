@@ -1,3 +1,5 @@
+(require 'url)
+
 (defgroup tokyopromenade nil
   "Utilities for tokyopromenade based site"
   :group 'convenience)
