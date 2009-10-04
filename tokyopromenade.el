@@ -34,7 +34,7 @@
 
 (defun tokyopromenade-default-article-template ()
   (mapconcat (lambda (_) _) (list
-			     "#!"
+			     "#! "
 			     (concat "#c " (tokyopromenade-get-current-time))
 			     (concat "#m " (tokyopromenade-get-current-time))
 			     (concat "#o " tokyopromenade-user)
@@ -60,14 +60,16 @@
 (defun tokyopromenade ()
   (interactive)
   (switch-to-buffer (generate-new-buffer "*tokyopromenade*"))
-  (insert (funcall tokyopromenade-article-template)))
+  (tokyopromenade-mode)
+  (insert (funcall tokyopromenade-article-template))
+  (goto-char 4))
 
 (defun tokyopromenade-login ()
   (interactive)
   (let ((url-request-method "POST")
 	(url-request-extra-headers '(("Content-Type" . "application/x-www-form-urlencoded")))
 	(url-request-data (tokyopromenade-login-token)))
-    (url-retrieve (tokyopromenade-uri) 'tokyopromenade-default-handler)
+    (kill-buffer (url-retrieve-synchronously (tokyopromenade-uri)))
     (if (tokyopromenade-check-login)
 	(message "tokyopromenade: login succeeded!"))))
 
@@ -90,10 +92,40 @@
 		(setq foundp t)))
 	  foundp))))
 
+(defvar tokyopromenade-post-success-regexp
+  "The article.*(\\([0-9]+\\)) have been stored")
+
 (defun tokyopromenade-post-article (body)
+  (interactive (list (buffer-string)))
+  (unless (tokyopromenade-check-login) (tokyopromenade-login))
   (let ((url-request-method "POST")
 	(url-request-extra-headers '(("Content-Type" . "application/x-www-form-urlencoded")))
-	(url-request-data (concat "wiki=" (url-hexify-string article) "&act=update")))
-    (url-retrieve (tokyopromenade-uri) (lambda (x) ()))))
+	(url-request-data (concat "wiki=" (url-hexify-string body) "&act=update")))
+    (url-retrieve (tokyopromenade-uri)
+		  (lambda (status)
+		    (if (re-search-forward tokyopromenade-post-success-regexp nil t)
+			(message (concat "Post done. id=" (match-string 1)))
+		      (message (buffer-string)))
+		    (kill-buffer (current-buffer))))
+    (kill-buffer (current-buffer))))
+
+(defvar tokyopromenade-mode-map ()
+  "Keymap used in Tokyo Promenade mode.")
+
+(when (not tokyopromenade-mode-map)
+  (setq tokyopromenade-mode-map (make-sparse-keymap))
+  (define-key tokyopromenade-mode-map "\C-c\C-c" #'tokyopromenade-post-article))
+
+(defvar tokyopromenade-font-lock-keywords
+  '()
+  "tokyopromenade keywords")
+
+(define-derived-mode tokyopromenade-mode text-mode "Tokyo Promenade"
+  "Major mode for editing article of tokyopromenade"
+  (kill-all-local-variables)
+  (set (make-local-variable 'font-lock-defaults)
+       '(tokyopromenade-font-lock-keywords nil t))
+  (use-local-map tokyopromenade-mode-map)
+  (run-hooks 'tokyopromenade-mode-hook))
 
 (provide 'tokyopromenade)
