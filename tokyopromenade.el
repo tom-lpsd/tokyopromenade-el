@@ -128,6 +128,8 @@
   (set (make-local-variable 'font-lock-defaults)
        '(tokyopromenade-font-lock-keywords nil t))
   (use-local-map tokyopromenade-mode-map)
+  (setq mode-name "Tokyo Promenade"
+	major-mode 'tokyopromenade-mode)
   (run-hooks 'tokyopromenade-mode-hook))
 
 (provide 'tokyopromenade)
